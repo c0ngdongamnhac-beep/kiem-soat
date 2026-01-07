@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Construction Admin Pro</title>
+    <style>
+        :root { --primary: #1a73e8; --success: #28a745; --danger: #dc3545; --bg: #f8f9fa; }
+        body { font-family: -apple-system, system-ui, sans-serif; margin: 0; background: var(--bg); padding-bottom: 70px; }
+        
+        .app-header { background: var(--primary); color: white; padding: 15px; text-align: center; font-weight: bold; position: sticky; top: 0; z-index: 100; }
+        .tab-bar { display: flex; background: white; border-bottom: 1px solid #ddd; position: sticky; top: 48px; z-index: 99; }
+        .tab-item { flex: 1; padding: 15px; text-align: center; font-weight: bold; color: #666; cursor: pointer; }
+        .tab-item.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
+
+        .container { padding: 15px; max-width: 500px; margin: auto; }
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        label { display: block; font-size: 0.8rem; font-weight: bold; color: #666; margin-bottom: 4px; }
+        input, select { width: 100%; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        
+        .btn { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; }
+        .btn-add { background: var(--success); color: white; margin-bottom: 10px; }
+        .btn-export { background: #fff; color: var(--primary); border: 1px solid var(--primary); }
+
+        /* Thống kê */
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .stat-box { background: white; padding: 15px; border-radius: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .stat-num { display: block; font-size: 1.5rem; font-weight: bold; color: var(--primary); }
+
+        /* Danh sách thẻ dữ liệu */
+        .data-card { background: white; border-radius: 10px; padding: 12px; margin-bottom: 10px; display: flex; justify-content: space-between; border-left: 5px solid var(--primary); position: relative; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .data-card.done { border-left-color: #ccc; opacity: 0.5; }
+        .data-card.done .info-name { text-decoration: line-through; }
+        
+        .info-name { font-weight: bold; display: block; color: #333; }
+        .info-sub { font-size: 0.8rem; color: #666; }
+        
+        .actions { display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; gap: 10px; }
+        .check-circle { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #ddd; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; }
+        .check-circle.checked { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        .btn-del-item { background: none; border: none; color: var(--danger); font-size: 1.2rem; padding: 0; cursor: pointer; opacity: 0.7; }
+
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+        th { background: #f1f3f4; }
+    </style>
+</head>
+<body>
+
+<div class="app-header">KIỂM SOÁT THI CÔNG</div>
+
+<div class="tab-bar">
+    <div class="tab-item active" id="tab-nhap" onclick="switchTab('nhaplieu')">NHẬP LIỆU</div>
+    <div class="tab-item" id="tab-thong" onclick="switchTab('thongke')">THỐNG KÊ</div>
+</div>
+
+<div class="container">
+    <div id="nhaplieu" class="page active">
+        <div class="card">
+            <label>HỌ VÀ TÊN</label>
+            <input type="text" id="name" placeholder="Tên công nhân..." autocomplete="off">
+            <label>ĐƠN VỊ</label>
+            <input type="text" id="unit" placeholder="Công ty / Tổ đội..." autocomplete="off">
+            <div style="display: flex; gap: 10px;">
+                <div style="flex:1"><label>SỐ THẺ</label><input type="text" id="cardId" placeholder="Mã thẻ..."></div>
+                <div style="flex:1"><label>TRẠNG THÁI</label><select id="status"><option value="VÀO">VÀO</option><option value="RA">RA</option></select></div>
+            </div>
+            <label>VỊ TRÍ</label>
+            <input type="text" id="position" placeholder="Khu vực thi công...">
+            <button class="btn btn-add" onclick="addData()">GHI DỮ LIỆU</button>
+            <button class="btn btn-export" onclick="exportToTXT()">XUẤT FILE TXT</button>
+        </div>
+        <div id="dataList"></div>
+    </div>
+
+    <div id="thongke" class="page">
+        <div class="stat-grid">
+            <div class="stat-box"><span class="stat-num" id="stat-total">0</span><span class="stat-label">Tổng lượt</span></div>
+            <div class="stat-box"><span class="stat-num" id="stat-present" style="color: var(--success);">0</span><span class="stat-label">Đang ở lại</span></div>
+        </div>
+        
+        <div class="card">
+            <h4 style="margin-top:0">Tổng hợp theo Đơn vị</h4>
+            <table id="unitTable">
+                <thead><tr><th>Đơn vị</th><th>Số người</th></tr></thead>
+                <tbody></tbody>
+            </table>
+        </div>
+
+        <button class="btn" style="background:#6c757d; color:white; font-size:0.8rem" onclick="safeClearAll()">Làm mới dữ liệu ngày mới (1234)</button>
+    </div>
+</div>
+
+<script>
+    function switchTab(tabId) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        if(tabId === 'nhaplieu') document.getElementById('tab-nhap').classList.add('active');
+        if(tabId === 'thongke') {
+            document.getElementById('tab-thong').classList.add('active');
+            updateStats();
+        }
+    }
+
+    function addData() {
+        const n = document.getElementById('name'), u = document.getElementById('unit'), c = document.getElementById('cardId'), p = document.getElementById('position'), s = document.getElementById('status');
+        if (!n.value.trim() || !c.value.trim()) return alert("Thiếu Tên hoặc Số thẻ!");
+
+        const entry = { 
+            id: Date.now(), 
+            name: n.value.trim(), 
+            unit: u.value.trim() || "Chưa rõ", 
+            cardId: c.value.trim(), 
+            position: p.value.trim() || "N/A", 
+            status: s.value, 
+            time: new Date().toLocaleTimeString('vi-VN', {hour:'2-digit', minute:'2-digit'}), 
+            fullTime: new Date().toLocaleString('vi-VN'), 
+            isDone: false 
+        };
+
+        let list = JSON.parse(localStorage.getItem('constructionData')) || [];
+        list.unshift(entry);
+        localStorage.setItem('constructionData', JSON.stringify(list));
+
+        n.value = ''; c.value = ''; u.value = ''; p.value = '';
+        n.focus();
+        displayData();
+    }
+
+    function displayData() {
+        const list = JSON.parse(localStorage.getItem('constructionData')) || [];
+        const container = document.getElementById('dataList');
+        container.innerHTML = list.map(item => `
+            <div class="data-card ${item.isDone ? 'done' : ''}">
+                <div style="flex:1">
+                    <span class="info-name">${item.name}</span>
+                    <span class="info-sub">${item.unit} | Thẻ: ${item.cardId}</span><br>
+                    <span class="info-sub">Giờ: ${item.time} | <b>${item.status}</b></span>
+                </div>
+                <div class="actions">
+                    <button class="btn-del-item" onclick="deleteRow(${item.id})">🗑️</button>
+                    <div class="check-circle ${item.isDone ? 'checked' : ''}" onclick="toggleDone(${item.id})">${item.isDone ? '✓' : ''}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function deleteRow(id) {
+        if(confirm("Bạn muốn xóa dòng này?")) {
+            let list = JSON.parse(localStorage.getItem('constructionData')) || [];
+            list = list.filter(i => i.id !== id);
+            localStorage.setItem('constructionData', JSON.stringify(list));
+            displayData();
+        }
+    }
+
+    function toggleDone(id) {
+        let list = JSON.parse(localStorage.getItem('constructionData')) || [];
+        const idx = list.findIndex(i => i.id === id);
+        list[idx].isDone = !list[idx].isDone;
+        localStorage.setItem('constructionData', JSON.stringify(list));
+        displayData();
+    }
+
+    function updateStats() {
+        const list = JSON.parse(localStorage.getItem('constructionData')) || [];
+        document.getElementById('stat-total').innerText = list.length;
+        document.getElementById('stat-present').innerText = list.filter(i => !i.isDone).length;
+        const units = {};
+        list.forEach(i => units[i.unit] = (units[i.unit] || 0) + 1);
+        const tbody = document.querySelector('#unitTable tbody');
+        tbody.innerHTML = Object.keys(units).map(u => `<tr><td>${u}</td><td>${units[u]}</td></tr>`).join('');
+    }
+
+    function safeClearAll() {
+        if (prompt("Nhập '1234' để xóa hết:") === "1234") {
+            localStorage.removeItem('constructionData');
+            displayData();
+            updateStats();
+        }
+    }
+
+    function exportToTXT() {
+        const list = JSON.parse(localStorage.getItem('constructionData')) || [];
+        if (!list.length) return alert("Không có dữ liệu!");
+        let text = "BAO CAO KIEM SOAT\n" + "-".repeat(30) + "\n";
+        list.forEach(i => text += `[${i.fullTime}] ${i.name} - Thẻ: ${i.cardId} - ĐV: ${i.unit} - TT: ${i.status} ${i.isDone ? '(Xong)' : ''}\n`);
+        const blob = new Blob([text], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `BaoCao_${new Date().toLocaleDateString().replace(/\//g,'-')}.txt`;
+        a.click();
+    }
+
+    window.onload = displayData;
+</script>
+</body>
+</html>
